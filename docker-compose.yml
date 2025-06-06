@@ -1,0 +1,13 @@
+version: "3.8"
+services:
+  imgdude:
+    build:
+      context: .
+    ports:
+      - "12312:12312"
+    environment:
+      IMGDUDE_MEDIA_ROOT: /app/media
+      IMGDUDE_CACHE_DIR: /app/cache
+    volumes:
+      - /path/to/images:/app/media
+      - /path/to/cache:/app/cache
