@@ -92,23 +92,9 @@ A `Dockerfile` and `docker-compose.yml` are provided for containerized deploymen
 
     ImgDude will be accessible on the host at the port mapped in `docker-compose.yml` (default: `12312`).
 
-## Configuration
+## Environment Variables
 
-ImgDude can be configured via CLI arguments (see above) or environment variables. Environment variables take precedence.
-
-**Key CLI Arguments (beyond host/port/paths):**
-
-- `--cache-max-age INTEGER`: Maximum age for cached images in seconds. (Default: `604800` (7 days); Env: `IMGDUDE_CACHE_MAX_AGE`)
-- `--max-width INTEGER`: Maximum allowed width for resized images. (Default: `2000`; Env: `IMGDUDE_MAX_WIDTH`)
-- `--log-level TEXT`: Logging level (`debug`, `info`, `warning`, `error`, `critical`). (Default: `info`)
-- `--trusted-hosts TEXT`: Comma-separated list of trusted host IPs. (Default: allow all hosts; Env: `IMGDUDE_TRUSTED_HOSTS`)
-- `--allowed-origins TEXT`: Comma-separated list of allowed CORS origins. (Default: allow all origins; Env: `IMGDUDE_ALLOWED_ORIGINS`)
-- `--image-workers INTEGER`: Number of worker threads for image processing. (Default: `max(2, CPU cores - 1)`; Env: `IMGDUDE_IMAGE_WORKERS`)
-- `--io-workers INTEGER`: Number of worker threads for file I/O operations. (Default: `max(2, CPU cores / 2)`; Env: `IMGDUDE_IO_WORKERS`)
-- `--max-connections INTEGER`: Maximum number of concurrent connections. (Default: `100`; Env: `IMGDUDE_MAX_CONNECTIONS`)
-- `--workers INTEGER`: Number of Uvicorn worker processes for the server. (Default: `1`; Env: `IMGDUDE_WORKERS`)
-
-**Key Environment Variables:**
+ImgDude can be configured via CLI arguments or environment variables. Environment variables take precedence over CLI argument defaults.
 
 - `IMGDUDE_MEDIA_ROOT`: Path to the directory containing original images.
 - `IMGDUDE_CACHE_DIR`: Path to the directory where resized images will be cached.
