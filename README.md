@@ -60,15 +60,15 @@ imgdude --host 0.0.0.0 --port 8080 --media-root /path/to/your/images --cache-dir
 - `--port INTEGER`: Server port. (Default: `12312`)
 - `--media-root PATH`: Root directory for original image files. (Default: `./media`; Env: `IMGDUDE_MEDIA_ROOT`)
 - `--cache-dir PATH`: Directory for storing cached resized images. (Default: `./cache`; Env: `IMGDUDE_CACHE_DIR`)
-- `--workers INTEGER`: Number of worker processes for the server. (Default: Number of CPU cores; Env: `IMGDUDE_WORKERS`)
-- `--threads INTEGER`: Number of threads per worker. (Default: `1`; Env: `IMGDUDE_THREADS`)
-- `--log-level TEXT`: Logging level (e.g., `critical`, `error`, `warning`, `info`, `debug`, `trace`). (Default: `info`; Env: `IMGDUDE_LOG_LEVEL`)
-- `--access-log / --no-access-log`: Enable/disable access log. (Default: Enabled; Env: `IMGDUDE_ACCESS_LOG`)
-- `--use-colors / --no-use-colors`: Enable/disable colored logging. (Default: Enabled if TTY; Env: `IMGDUDE_USE_COLORS`)
-- `--env-file PATH`: Load environment variables from a file.
-- `--cleanup-interval INTEGER`: Interval in seconds for periodic cache cleanup. (Default: `3600`; Env: `IMGDUDE_CLEANUP_INTERVAL_SECONDS`)
-- `--image-processing-workers INTEGER`: Number of workers for the image processing thread pool. (Default: Number of CPU cores; Env: `IMGDUDE_IMAGE_PROCESSING_WORKERS`)
-- `--file-io-workers INTEGER`: Number of workers for the file I/O thread pool. (Default: `10`; Env: `IMGDUDE_FILE_IO_WORKERS`)
+- `--cache-max-age INTEGER`: Maximum age for cached images in seconds. (Default: `604800` (7 days); Env: `IMGDUDE_CACHE_MAX_AGE`)
+- `--max-width INTEGER`: Maximum allowed width for resized images. (Default: `2000`; Env: `IMGDUDE_MAX_WIDTH`)
+- `--log-level TEXT`: Logging level (`debug`, `info`, `warning`, `error`, `critical`). (Default: `info`)
+- `--trusted-hosts TEXT`: Comma-separated list of trusted host IPs. (Default: allow all hosts; Env: `IMGDUDE_TRUSTED_HOSTS`)
+- `--allowed-origins TEXT`: Comma-separated list of allowed CORS origins. (Default: allow all origins; Env: `IMGDUDE_ALLOWED_ORIGINS`)
+- `--image-workers INTEGER`: Number of worker threads for image processing. (Default: `max(2, CPU cores - 1)`; Env: `IMGDUDE_IMAGE_WORKERS`)
+- `--io-workers INTEGER`: Number of worker threads for file I/O operations. (Default: `max(2, CPU cores / 2)`; Env: `IMGDUDE_IO_WORKERS`)
+- `--max-connections INTEGER`: Maximum number of concurrent connections. (Default: `100`; Env: `IMGDUDE_MAX_CONNECTIONS`)
+- `--workers INTEGER`: Number of Uvicorn worker processes for the server. (Default: `1`; Env: `IMGDUDE_WORKERS`)
 - `--version`: Show version and exit.
 
 ### Docker
@@ -98,34 +98,28 @@ ImgDude can be configured via CLI arguments (see above) or environment variables
 
 **Key CLI Arguments (beyond host/port/paths):**
 
-- `--workers INTEGER`: Number of worker processes for the server. (Default: Number of CPU cores; Env: `IMGDUDE_WORKERS`)
-- `--threads INTEGER`: Number of threads per worker. (Default: `1`; Env: `IMGDUDE_THREADS`)
-- `--log-level TEXT`: Logging level (e.g., `critical`, `error`, `warning`, `info`, `debug`, `trace`). (Default: `info`; Env: `IMGDUDE_LOG_LEVEL`)
-- `--access-log / --no-access-log`: Enable/disable access log. (Default: Enabled; Env: `IMGDUDE_ACCESS_LOG`)
-- `--use-colors / --no-use-colors`: Enable/disable colored logging. (Default: Enabled if TTY; Env: `IMGDUDE_USE_COLORS`)
-- `--env-file PATH`: Load environment variables from a file.
-- `--cleanup-interval INTEGER`: Interval in seconds for periodic cache cleanup. (Default: `3600`; Env: `IMGDUDE_CLEANUP_INTERVAL_SECONDS`)
-- `--image-processing-workers INTEGER`: Number of workers for the image processing thread pool. (Default: Number of CPU cores; Env: `IMGDUDE_IMAGE_PROCESSING_WORKERS`)
-- `--file-io-workers INTEGER`: Number of workers for the file I/O thread pool. (Default: `10`; Env: `IMGDUDE_FILE_IO_WORKERS`)
+- `--cache-max-age INTEGER`: Maximum age for cached images in seconds. (Default: `604800` (7 days); Env: `IMGDUDE_CACHE_MAX_AGE`)
+- `--max-width INTEGER`: Maximum allowed width for resized images. (Default: `2000`; Env: `IMGDUDE_MAX_WIDTH`)
+- `--log-level TEXT`: Logging level (`debug`, `info`, `warning`, `error`, `critical`). (Default: `info`)
+- `--trusted-hosts TEXT`: Comma-separated list of trusted host IPs. (Default: allow all hosts; Env: `IMGDUDE_TRUSTED_HOSTS`)
+- `--allowed-origins TEXT`: Comma-separated list of allowed CORS origins. (Default: allow all origins; Env: `IMGDUDE_ALLOWED_ORIGINS`)
+- `--image-workers INTEGER`: Number of worker threads for image processing. (Default: `max(2, CPU cores - 1)`; Env: `IMGDUDE_IMAGE_WORKERS`)
+- `--io-workers INTEGER`: Number of worker threads for file I/O operations. (Default: `max(2, CPU cores / 2)`; Env: `IMGDUDE_IO_WORKERS`)
+- `--max-connections INTEGER`: Maximum number of concurrent connections. (Default: `100`; Env: `IMGDUDE_MAX_CONNECTIONS`)
+- `--workers INTEGER`: Number of Uvicorn worker processes for the server. (Default: `1`; Env: `IMGDUDE_WORKERS`)
 
 **Key Environment Variables:**
 
 - `IMGDUDE_MEDIA_ROOT`: Path to the directory containing original images.
 - `IMGDUDE_CACHE_DIR`: Path to the directory where resized images will be cached.
-- `IMGDUDE_TRUSTED_HOSTS`: Comma-separated list of allowed host headers. (Default: `*`)
-- `IMGDUDE_CACHE_MAX_AGE_SECONDS`: Maximum age for cached files in seconds. (Default: `604800` (7 days))
-- `IMGDUDE_CACHE_MAX_SIZE_MB`: Maximum total size for the image cache in megabytes. (Default: `1024`)
-- `IMGDUDE_LOG_LEVEL`: Logging level (e.g., `INFO`, `DEBUG`). (Default: `INFO`)
-- `IMGDUDE_DEFAULT_IMAGE_QUALITY`: Default quality for resized JPEG/WebP images (1-100). (Default: `85`)
-- `IMGDUDE_MAX_RESIZE_WIDTH`: Maximum allowed width for image resizing. (Default: `4000`)
-- `IMGDUDE_MAX_RESIZE_HEIGHT`: Maximum allowed height for image resizing. (Default: `4000`)
-- `IMGDUDE_WORKERS`: Number of worker processes for the server.
-- `IMGDUDE_THREADS`: Number of threads per worker.
-- `IMGDUDE_ACCESS_LOG`: Set to `true` or `false` to enable/disable access log.
-- `IMGDUDE_USE_COLORS`: Set to `true` or `false` to enable/disable colored logging.
-- `IMGDUDE_CLEANUP_INTERVAL_SECONDS`: Interval in seconds for periodic cache cleanup.
-- `IMGDUDE_IMAGE_PROCESSING_WORKERS`: Number of workers for the image processing thread pool.
-- `IMGDUDE_FILE_IO_WORKERS`: Number of workers for the file I/O thread pool.
+- `IMGDUDE_CACHE_MAX_AGE`: Maximum age for cached files in seconds. (Default: `604800` (7 days))
+- `IMGDUDE_MAX_WIDTH`: Maximum allowed width for image resizing. (Default: `2000`)
+- `IMGDUDE_TRUSTED_HOSTS`: Comma-separated list of trusted host IPs. (Default: allow all hosts)
+- `IMGDUDE_ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins. (Default: allow all origins)
+- `IMGDUDE_IMAGE_WORKERS`: Number of worker threads for image processing. (Default: `max(2, CPU cores - 1)`)
+- `IMGDUDE_IO_WORKERS`: Number of worker threads for file I/O operations. (Default: `max(2, CPU cores / 2)`)
+- `IMGDUDE_MAX_CONNECTIONS`: Maximum number of concurrent connections. (Default: `100`)
+- `IMGDUDE_WORKERS`: Number of Uvicorn worker processes for the server. (Default: `1`)
 
 ## API Usage
 
@@ -137,16 +131,13 @@ Where `{image_path}` is the relative path to the image within your `IMGDUDE_MEDI
 
 **Query Parameters:**
 
-- `w` (integer, optional): Target width in pixels. If only `w` or `h` is provided, aspect ratio is maintained.
-- `h` (integer, optional): Target height in pixels.
-- `q` (integer, optional): Output quality for JPEG or WebP formats (1-100). (Default: `85`)
-- `format` (string, optional): Desired output image format (e.g., `jpeg`, `png`, `webp`). If omitted, ImgDude attempts to use the original format or a sensible default.
+- `w` (integer, optional): Target width in pixels. Aspect ratio is automatically maintained when resizing.
 
 **Example:**
 
-To resize `myfolder/myimage.jpg` to a width of 300 pixels with 80% quality:
+To resize `myfolder/myimage.jpg` to a width of 300 pixels:
 
-`/image/myfolder/myimage.jpg?w=300&q=80`
+`/image/myfolder/myimage.jpg?w=300`
 
 ## Nginx Integration
 
