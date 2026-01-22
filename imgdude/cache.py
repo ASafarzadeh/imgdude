@@ -197,11 +197,19 @@ class CacheManager:
                 await asyncio.sleep(interval_seconds)
         except asyncio.CancelledError:
             logger.info("Periodic cache cleanup task cancelled")
-            self._thread_pool.shutdown(wait=False)
             raise
         except Exception as e:
             logger.error(f"Error in periodic cache cleanup: {str(e)}")
             raise
+
+    def shutdown(self) -> None:
+        """Shutdown the cache manager and release resources."""
+        try:
+            self._thread_pool.shutdown(wait=False)
+            self._recently_accessed.clear()
+            logger.info("CacheManager shutdown complete")
+        except Exception as e:
+            logger.error(f"Error during CacheManager shutdown: {str(e)}")
 
     async def _get_cache_size(self) -> int:
         """Calculate the total size of the cache in bytes."""

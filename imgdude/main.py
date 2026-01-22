@@ -133,10 +133,14 @@ async def lifespan(app: FastAPI):
             except asyncio.CancelledError:
                 pass
         
+        cache_manager.shutdown()
+        
         if image_processing_pool:
             image_processing_pool.shutdown(wait=True)
         if file_io_pool:
             file_io_pool.shutdown(wait=True)
+        
+        get_cache_path.cache_clear()
         
         logger.info("ImgDude shutdown complete")
 
@@ -190,13 +194,12 @@ def validate_path(filepath: str) -> Path:
         raise HTTPException(status_code=400, detail="Invalid file path")
 
 @lru_cache(maxsize=1000)
-def get_cache_path(filepath: Path, width: Optional[int]) -> Path:
+def get_cache_path(filepath_str: str, width: Optional[int], suffix: str) -> Path:
     """Generates a unique cache path for a resized image."""
-    original_path = str(filepath.relative_to(config.MEDIA_ROOT) if filepath.is_absolute() else filepath)
-    cache_key = f"{original_path}_w{width}"
+    cache_key = f"{filepath_str}_w{width}"
     hashed = hashlib.md5(cache_key.encode()).hexdigest()
     
-    return Path(config.CACHE_DIR) / f"{hashed}{filepath.suffix}"
+    return Path(config.CACHE_DIR) / f"{hashed}{suffix}"
 
 @lru_cache(maxsize=100)
 def get_mime_type(file_extension: str) -> str:
@@ -238,6 +241,8 @@ def _write_file_sync(file_path: Path, data: bytes) -> None:
 
 def _resize_image_sync(img_data: bytes, width: int) -> bytes:
     """Synchronous version of resize_image to run in a thread pool."""
+    img = None
+    resized_img = None
     try:
         start_time = time.time()
         img = Image.open(io.BytesIO(img_data))
@@ -249,19 +254,21 @@ def _resize_image_sync(img_data: bytes, width: int) -> bytes:
         ratio = width / float(img.width)
         height = int(ratio * img.height)
         
-        img = img.resize((width, height), Image.LANCZOS)
+        format_to_use = img.format if img.format else 'JPEG'
+        resized_img = img.resize((width, height), Image.LANCZOS)
         
         buffer = io.BytesIO()
-        format_to_use = img.format if img.format else 'JPEG'
         
         save_options = {}
         if format_to_use in ('JPEG', 'PNG'):
             save_options['optimize'] = True
         
-        if format_to_use == 'JPEG' and img.mode in ('RGBA', 'LA', 'P'):
-            img = img.convert('RGB')
+        if format_to_use == 'JPEG' and resized_img.mode in ('RGBA', 'LA', 'P'):
+            converted = resized_img.convert('RGB')
+            resized_img.close()
+            resized_img = converted
             
-        img.save(buffer, format=format_to_use, **save_options)
+        resized_img.save(buffer, format=format_to_use, **save_options)
         
         process_time = time.time() - start_time
         logger.debug(f"Image resized in {process_time:.4f} seconds")
@@ -270,6 +277,11 @@ def _resize_image_sync(img_data: bytes, width: int) -> bytes:
     except Exception as e:
         logger.error(f"Image resize error: {str(e)}")
         raise HTTPException(status_code=500, detail="Error resizing image")
+    finally:
+        if resized_img is not None:
+            resized_img.close()
+        if img is not None:
+            img.close()
 
 connection_semaphore = asyncio.Semaphore(config.MAX_CONNECTIONS)
 
@@ -298,7 +310,8 @@ async def get_image(filepath: str, w: Optional[int] = Query(None, ge=1, le=confi
                     headers=headers
                 )
             
-            cache_path = get_cache_path(abs_path, w)
+            relative_path = str(abs_path.relative_to(config.MEDIA_ROOT))
+            cache_path = get_cache_path(relative_path, w, abs_path.suffix)
             if os.path.exists(cache_path):
                 cached_data = await read_file_async(cache_path)
                 
