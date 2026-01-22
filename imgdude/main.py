@@ -54,6 +54,7 @@ class Config:
     IMAGE_PROCESSING_WORKERS = int(os.environ.get("IMGDUDE_IMAGE_WORKERS", str(max(2, CPU_COUNT - 1))))
     FILE_IO_WORKERS = int(os.environ.get("IMGDUDE_IO_WORKERS", str(max(2, CPU_COUNT // 2))))
     MAX_CONNECTIONS = int(os.environ.get("IMGDUDE_MAX_CONNECTIONS", "100"))
+    MAX_FILE_SIZE = int(os.environ.get("IMGDUDE_MAX_FILE_SIZE", str(50 * 1024 * 1024)))
 
 config = Config()
 
@@ -82,7 +83,7 @@ class TrustedHostMiddleware(BaseHTTPMiddleware):
         if client_host not in config.TRUSTED_HOSTS:
             logger.warning(f"Blocked request from untrusted host: {client_host}")
             return Response(
-                content=f"Access denied: {client_host} is not in trusted hosts list",
+                content="Access denied",
                 status_code=403
             )
         
@@ -167,10 +168,22 @@ app.add_middleware(
 def validate_path(filepath: str) -> Path:
     """Ensures the requested file path is safe and valid."""
     try:
+        if not filepath or filepath.isspace():
+            raise HTTPException(status_code=400, detail="Empty file path")
+        
+        filepath = filepath.replace('\x00', '')
+        
+        if any(c in filepath for c in ['\n', '\r', '\t']):
+            logger.warning(f"Invalid characters in path: {repr(filepath)}")
+            raise HTTPException(status_code=400, detail="Invalid characters in path")
+        
         requested_path = Path(filepath)
         
-        normalized_path = Path(os.path.normpath(filepath))
-        if ".." in normalized_path.parts or normalized_path.is_absolute():
+        if requested_path.is_absolute():
+            logger.warning(f"Absolute path rejected: {filepath}")
+            raise HTTPException(status_code=403, detail="Absolute paths not allowed")
+        
+        if '..' in filepath or filepath.startswith('/'):
             logger.warning(f"Path traversal attempt detected: {filepath}")
             raise HTTPException(status_code=403, detail="Path traversal detected")
         
@@ -178,18 +191,19 @@ def validate_path(filepath: str) -> Path:
             logger.warning(f"Unsupported file extension: {requested_path.suffix}")
             raise HTTPException(status_code=400, detail="Unsupported file extension")
         
-        abs_path = Path(config.MEDIA_ROOT) / requested_path
+        media_root = Path(config.MEDIA_ROOT).resolve()
+        abs_path = (media_root / requested_path).resolve()
         
         try:
-            abs_path.relative_to(Path(config.MEDIA_ROOT))
+            abs_path.relative_to(media_root)
         except ValueError:
-            logger.warning(f"Invalid path attempt: {filepath}")
+            logger.warning(f"Path escape attempt: {filepath} resolved to {abs_path}")
             raise HTTPException(status_code=403, detail="Invalid path")
         
         return abs_path
+    except HTTPException:
+        raise
     except Exception as e:
-        if isinstance(e, HTTPException):
-            raise
         logger.error(f"Path validation error: {str(e)}")
         raise HTTPException(status_code=400, detail="Invalid file path")
 
@@ -197,7 +211,7 @@ def validate_path(filepath: str) -> Path:
 def get_cache_path(filepath_str: str, width: Optional[int], suffix: str) -> Path:
     """Generates a unique cache path for a resized image."""
     cache_key = f"{filepath_str}_w{width}"
-    hashed = hashlib.md5(cache_key.encode()).hexdigest()
+    hashed = hashlib.sha256(cache_key.encode()).hexdigest()[:32]
     
     return Path(config.CACHE_DIR) / f"{hashed}{suffix}"
 
@@ -295,8 +309,12 @@ async def get_image(filepath: str, w: Optional[int] = Query(None, ge=1, le=confi
             abs_path = validate_path(filepath)
             
             if not os.path.exists(abs_path):
-                logger.warning(f"Image not found: {abs_path}")
                 raise HTTPException(status_code=404, detail="Image not found")
+            
+            file_size = os.path.getsize(abs_path)
+            if file_size > config.MAX_FILE_SIZE:
+                logger.warning(f"File too large: {file_size} bytes (max: {config.MAX_FILE_SIZE})")
+                raise HTTPException(status_code=413, detail="File too large")
             
             headers = {}
             
