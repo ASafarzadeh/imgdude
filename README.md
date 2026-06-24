@@ -6,6 +6,9 @@
 
 ImgDude is a high-performance image resizing proxy, built with FastAPI, designed for on-the-fly image processing and optimized delivery. It setups easily in a few minutes and features an efficient caching system.
 
+> [!WARNING]
+> Personally seeing ai generated code for me is an instant EWWW. So yeah, this repo is ai generated, but human reviewd and also tested in high load environments. Check the code before running though anyways.
+
 ## Key Features
 
 - **On-the-fly Image Resizing:** Dynamically resize images via URL parameters, with automatic aspect ratio preservation.

@@ -1,13 +1,15 @@
-version: "3.8"
 services:
   imgdude:
     build:
       context: .
+    restart: unless-stopped
     ports:
       - "127.0.0.1:12312:12312"
     environment:
       IMGDUDE_MEDIA_ROOT: /app/media
       IMGDUDE_CACHE_DIR: /app/cache
+      # Comma-separated CORS origins. Leave unset to allow all (no credentials).
+      # IMGDUDE_ALLOWED_ORIGINS: "https://example.com,https://api.example.com"
     volumes:
       - /path/to/images:/app/media
       - /path/to/cache:/app/cache
