@@ -20,6 +20,7 @@ import logging
 from functools import lru_cache
 
 from .cache import CacheManager
+from ._version import __version__
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -157,7 +158,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="ImgDude",
     description="Image resizing proxy standalone backend",
-    version="1.0.1",
+    version=__version__,
     docs_url="/docs" if config.ENABLE_DOCS else None,
     redoc_url="/redoc" if config.ENABLE_DOCS else None,
     openapi_url="/openapi.json" if config.ENABLE_DOCS else None,
@@ -406,7 +407,6 @@ async def clean_cache() -> Dict[str, Any]:
 @app.get("/health")
 async def health_check() -> Dict[str, Any]:
     """Health check endpoint."""
-    from . import __version__
     return {
         "status": "healthy",
         "version": __version__,
