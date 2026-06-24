@@ -100,8 +100,10 @@ ImgDude can be configured via CLI arguments or environment variables. Environmen
 - `IMGDUDE_CACHE_DIR`: Path to the directory where resized images will be cached.
 - `IMGDUDE_CACHE_MAX_AGE`: Maximum age for cached files in seconds. (Default: `604800` (7 days))
 - `IMGDUDE_MAX_WIDTH`: Maximum allowed width for image resizing. (Default: `2000`)
+- `IMGDUDE_MAX_IMAGE_PIXELS`: Maximum decoded pixel count (width × height) allowed, to mitigate decompression-bomb attacks. (Default: `50000000`)
 - `IMGDUDE_TRUSTED_HOSTS`: Comma-separated list of trusted host IPs. (Default: allow all hosts)
-- `IMGDUDE_ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins. (Default: allow all origins)
+- `IMGDUDE_ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins. Credentialed CORS is only enabled when explicit origins are set (never with `*`). (Default: allow all origins)
+- `IMGDUDE_ENABLE_DOCS`: Set to `true` to expose the `/docs`, `/redoc`, and `/openapi.json` endpoints. (Default: disabled)
 - `IMGDUDE_IMAGE_WORKERS`: Number of worker threads for image processing. (Default: `max(2, CPU cores - 1)`)
 - `IMGDUDE_IO_WORKERS`: Number of worker threads for file I/O operations. (Default: `max(2, CPU cores / 2)`)
 - `IMGDUDE_MAX_CONNECTIONS`: Maximum number of concurrent connections. (Default: `100`)

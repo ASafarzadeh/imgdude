@@ -107,17 +107,13 @@ def test_validate_path():
 
 
 def test_get_cache_path():
-    filepath = Path("test/image.jpg")
-    cache_path = get_cache_path(filepath, 100)
+    filepath = "test/image.jpg"
+    cache_path = get_cache_path(filepath, 100, ".jpg")
     assert Path(cache_path).parts[0] == Path(config.CACHE_DIR).name
     assert cache_path.suffix == ".jpg"
-    cache_path1 = get_cache_path(filepath, 100)
-    cache_path2 = get_cache_path(filepath, 200)
-    assert cache_path1 != cache_path2
-    
-    # Verify different parameters produce different paths
-    cache_path1 = get_cache_path(filepath, 100)
-    cache_path2 = get_cache_path(filepath, 200)
+
+    cache_path1 = get_cache_path(filepath, 100, ".jpg")
+    cache_path2 = get_cache_path(filepath, 200, ".jpg")
     assert cache_path1 != cache_path2
 
 

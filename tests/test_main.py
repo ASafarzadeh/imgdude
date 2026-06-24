@@ -175,10 +175,9 @@ def test_health_check_endpoint():
     data = response.json()
     assert data["status"] == "healthy"
     assert "version" in data
-    assert "trusted_hosts" in data
-    assert "allowed_origins" in data
-    assert "default_port" in data
-    assert data["default_port"] == 12312
+    assert "trusted_hosts" not in data
+    assert "allowed_origins" not in data
+    assert "default_port" not in data
 
 
 def test_trusted_hosts_middleware():

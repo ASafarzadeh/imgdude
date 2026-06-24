@@ -1,7 +1,6 @@
 """Main FastAPI application for image resizing."""
 
 import os
-import re
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Callable
 import asyncio
@@ -11,14 +10,11 @@ import time
 import concurrent.futures
 import multiprocessing
 
-from fastapi import FastAPI, HTTPException, Query, Depends, Request, Response as FastAPIResponse
+from fastapi import FastAPI, HTTPException, Query, Request, Response as FastAPIResponse
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from PIL import Image
-import aiofiles
-import aiofiles.os
 import io
 import logging
 from functools import lru_cache
@@ -55,8 +51,12 @@ class Config:
     FILE_IO_WORKERS = int(os.environ.get("IMGDUDE_IO_WORKERS", str(max(2, CPU_COUNT // 2))))
     MAX_CONNECTIONS = int(os.environ.get("IMGDUDE_MAX_CONNECTIONS", "100"))
     MAX_FILE_SIZE = int(os.environ.get("IMGDUDE_MAX_FILE_SIZE", str(50 * 1024 * 1024)))
+    MAX_IMAGE_PIXELS = int(os.environ.get("IMGDUDE_MAX_IMAGE_PIXELS", str(50 * 1000 * 1000)))
+    ENABLE_DOCS = os.environ.get("IMGDUDE_ENABLE_DOCS", "").lower() in ("1", "true", "yes")
 
 config = Config()
+
+Image.MAX_IMAGE_PIXELS = config.MAX_IMAGE_PIXELS
 
 cache_manager = CacheManager(config.CACHE_DIR, config.CACHE_MAX_AGE)
 
@@ -77,6 +77,7 @@ class TrustedHostMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             process_time = time.time() - start_time
             response.headers["X-Process-Time"] = f"{process_time:.4f} seconds"
+            response.headers["X-Content-Type-Options"] = "nosniff"
             return response
 
         client_host = request.client.host if request.client else None
@@ -91,6 +92,7 @@ class TrustedHostMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         process_time = time.time() - start_time
         response.headers["X-Process-Time"] = f"{process_time:.4f} seconds"
+        response.headers["X-Content-Type-Options"] = "nosniff"
         return response
 
 @asynccontextmanager
@@ -150,17 +152,20 @@ app = FastAPI(
     title="ImgDude",
     description="Image resizing proxy standalone backend",
     version="1.0.1",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if config.ENABLE_DOCS else None,
+    redoc_url="/redoc" if config.ENABLE_DOCS else None,
+    openapi_url="/openapi.json" if config.ENABLE_DOCS else None,
     lifespan=lifespan,
 )
 
 app.add_middleware(TrustedHostMiddleware)
 
+cors_allow_credentials = config.ALLOWED_ORIGINS_PROVIDED and "*" not in config.ALLOWED_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=config.ALLOWED_ORIGINS,
-    allow_credentials=True,
+    allow_credentials=cors_allow_credentials,
     allow_methods=["GET", "HEAD"],
     allow_headers=["*"],
 )
@@ -260,7 +265,11 @@ def _resize_image_sync(img_data: bytes, width: int) -> bytes:
     try:
         start_time = time.time()
         img = Image.open(io.BytesIO(img_data))
-        
+
+        if img.width * img.height > config.MAX_IMAGE_PIXELS:
+            logger.warning(f"Image too large: {img.width}x{img.height} exceeds {config.MAX_IMAGE_PIXELS} pixels")
+            raise HTTPException(status_code=413, detail="Image dimensions too large")
+
         if img.width <= width:
             logger.debug(f"Image already at or below requested width ({img.width} <= {width})")
             return img_data
@@ -288,6 +297,11 @@ def _resize_image_sync(img_data: bytes, width: int) -> bytes:
         logger.debug(f"Image resized in {process_time:.4f} seconds")
         
         return buffer.getvalue()
+    except HTTPException:
+        raise
+    except Image.DecompressionBombError as e:
+        logger.warning(f"Decompression bomb rejected: {str(e)}")
+        raise HTTPException(status_code=413, detail="Image dimensions too large")
     except Exception as e:
         logger.error(f"Image resize error: {str(e)}")
         raise HTTPException(status_code=500, detail="Error resizing image")
@@ -328,7 +342,7 @@ async def get_image(filepath: str, w: Optional[int] = Query(None, ge=1, le=confi
                     headers=headers
                 )
             
-            relative_path = str(abs_path.relative_to(config.MEDIA_ROOT))
+            relative_path = str(abs_path.relative_to(Path(config.MEDIA_ROOT).resolve()))
             cache_path = get_cache_path(relative_path, w, abs_path.suffix)
             if os.path.exists(cache_path):
                 cached_data = await read_file_async(cache_path)
@@ -388,14 +402,6 @@ async def health_check() -> Dict[str, Any]:
     """Health check endpoint."""
     from . import __version__
     return {
-        "status": "healthy", 
+        "status": "healthy",
         "version": __version__,
-        "trusted_hosts": config.TRUSTED_HOSTS,
-        "allowed_origins": config.ALLOWED_ORIGINS,
-        "default_port": 12312,
-        "workers": {
-            "image_processing": config.IMAGE_PROCESSING_WORKERS,
-            "file_io": config.FILE_IO_WORKERS,
-            "max_connections": config.MAX_CONNECTIONS
-        }
-    } 
+    }
