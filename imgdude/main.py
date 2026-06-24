@@ -25,6 +25,12 @@ from .cache import CacheManager
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("imgdude")
 
+def _parse_csv_env(var_name: str) -> List[str]:
+    """Parse a comma-separated env var into a clean, de-duplicated list."""
+    raw = os.environ.get(var_name, "")
+    items = [value.strip() for value in raw.split(",") if value.strip()]
+    return list(dict.fromkeys(items))
+
 # Configuration
 class Config:
     """Configuration for ImgDude. Values can be overridden by environment variables."""
@@ -34,9 +40,9 @@ class Config:
     MAX_WIDTH = int(os.environ.get("IMGDUDE_MAX_WIDTH", "2000"))
     ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
     TRUSTED_HOSTS_PROVIDED = len(os.environ.get("IMGDUDE_TRUSTED_HOSTS", "").strip()) > 0
-    TRUSTED_HOSTS = os.environ.get("IMGDUDE_TRUSTED_HOSTS", "*").split(",") if TRUSTED_HOSTS_PROVIDED else ["*"]
+    TRUSTED_HOSTS = _parse_csv_env("IMGDUDE_TRUSTED_HOSTS") if TRUSTED_HOSTS_PROVIDED else ["*"]
     ALLOWED_ORIGINS_PROVIDED = len(os.environ.get("IMGDUDE_ALLOWED_ORIGINS", "").strip()) > 0
-    ALLOWED_ORIGINS = os.environ.get("IMGDUDE_ALLOWED_ORIGINS", "*").split(",") if ALLOWED_ORIGINS_PROVIDED else ["*"]
+    ALLOWED_ORIGINS = _parse_csv_env("IMGDUDE_ALLOWED_ORIGINS") if ALLOWED_ORIGINS_PROVIDED else ["*"]
     CACHE_HEADERS = {
         "Cache-Control": f"public, max-age={CACHE_MAX_AGE}",
         "X-ImgDude-Cache": "HIT"
