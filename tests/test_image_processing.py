@@ -6,6 +6,7 @@ import pytest
 import asyncio
 from pathlib import Path
 from PIL import Image
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 
@@ -168,3 +169,24 @@ async def test_resize_transparent_image():
         # Check dimensions (the important part)
         assert resized_img.width == 100
         assert resized_img.height == 50 
+
+def test_resize_bakes_exif_orientation():
+    """A phone photo tagged "rotate 90 CW" must come out portrait, not sideways."""
+    img = Image.new('RGB', (200, 100), color='blue')
+    exif = Image.Exif()
+    exif[0x0112] = 6
+    buffer = io.BytesIO()
+    img.save(buffer, format='JPEG', exif=exif.tobytes())
+
+    resized = imgdude.main._resize_image_sync(buffer.getvalue(), 50)
+
+    with Image.open(io.BytesIO(resized)) as out:
+        assert out.size == (50, 100)
+
+
+def test_resize_rejects_formats_outside_the_allowlist():
+    buffer = io.BytesIO()
+    Image.new("RGB", (40, 20), color="red").save(buffer, format="BMP")
+    with pytest.raises(HTTPException) as excinfo:
+        imgdude.main._resize_image_sync(buffer.getvalue(), 20)
+    assert excinfo.value.status_code == 415

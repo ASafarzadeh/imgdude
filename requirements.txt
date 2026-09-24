@@ -1,5 +1,6 @@
-fastapi>=0.109.1
-pillow>=10.3.0
-uvicorn[standard]>=0.29.0
-aiofiles>=23.2.0
-python-multipart>=0.0.18 
+fastapi==0.141.1
+starlette==1.7.0
+pillow==12.3.0
+uvicorn[standard]==0.53.0
+aiofiles==25.1.0
+python-multipart==0.0.32

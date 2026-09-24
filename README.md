@@ -20,7 +20,7 @@ ImgDude is a high-performance image resizing proxy, built with FastAPI, designed
 
 ## Prerequisites
 
-- Python 3.8+
+- Python 3.10+
 - A reverse proxy (Like nginx)
 
 ## Installation

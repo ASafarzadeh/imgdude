@@ -14,7 +14,7 @@ from fastapi import FastAPI, HTTPException, Query, Request, Response as FastAPIR
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from PIL import Image
+from PIL import Image, ImageOps
 import io
 import logging
 from functools import lru_cache
@@ -40,6 +40,7 @@ class Config:
     CACHE_MAX_AGE = int(os.environ.get("IMGDUDE_CACHE_MAX_AGE", "604800"))
     MAX_WIDTH = int(os.environ.get("IMGDUDE_MAX_WIDTH", "2000"))
     ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+    ALLOWED_FORMATS = {"JPEG", "PNG", "GIF", "WEBP"}
     TRUSTED_HOSTS_PROVIDED = len(os.environ.get("IMGDUDE_TRUSTED_HOSTS", "").strip()) > 0
     TRUSTED_HOSTS = _parse_csv_env("IMGDUDE_TRUSTED_HOSTS") if TRUSTED_HOSTS_PROVIDED else ["*"]
     ALLOWED_ORIGINS_PROVIDED = len(os.environ.get("IMGDUDE_ALLOWED_ORIGINS", "").strip()) > 0
@@ -273,9 +274,17 @@ def _resize_image_sync(img_data: bytes, width: int) -> bytes:
         start_time = time.time()
         img = Image.open(io.BytesIO(img_data))
 
+        if img.format not in config.ALLOWED_FORMATS:
+            logger.warning(f"Unsupported image format: {img.format}")
+            raise HTTPException(status_code=415, detail="Unsupported image format")
+
         if img.width * img.height > config.MAX_IMAGE_PIXELS:
             logger.warning(f"Image too large: {img.width}x{img.height} exceeds {config.MAX_IMAGE_PIXELS} pixels")
             raise HTTPException(status_code=413, detail="Image dimensions too large")
+
+        # Phone photos keep their rotation in the EXIF Orientation tag, which a
+        # resize drops - bake it in first or the variant comes out sideways.
+        ImageOps.exif_transpose(img, in_place=True)
 
         if img.width <= width:
             logger.debug(f"Image already at or below requested width ({img.width} <= {width})")
