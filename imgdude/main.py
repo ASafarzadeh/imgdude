@@ -329,7 +329,7 @@ def _resize_image_sync(img_data: bytes, width: int) -> bytes:
 
 connection_semaphore = asyncio.Semaphore(config.MAX_CONNECTIONS)
 
-@app.get("/image/{filepath:path}")
+@app.api_route("/image/{filepath:path}", methods=["GET", "HEAD"])
 async def get_image(filepath: str, w: Optional[int] = Query(None, ge=1, le=config.MAX_WIDTH)):
     """Serve an image, optionally resizing it."""
     async with connection_semaphore:

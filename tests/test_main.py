@@ -300,3 +300,15 @@ def test_thread_pools():
     # Check thread naming
     assert imgdude.main.image_processing_pool._thread_name_prefix == "img_proc"
     assert imgdude.main.file_io_pool._thread_name_prefix == "file_io" 
+
+
+def test_head_resized_image():
+    response = client.head("/image/test.jpg?w=50")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/jpeg"
+    assert int(response.headers["content-length"]) > 0
+
+
+def test_head_image_not_found():
+    response = client.head("/image/nonexistent.jpg")
+    assert response.status_code == 404
